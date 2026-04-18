@@ -20,6 +20,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
+
     steps:
       - name: Checkout release branch for manifest
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -44,21 +45,7 @@ jobs:
 
       - name: Generate manifest
         working-directory: release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run manifest:gen
-
-      - name: Sign manifest
-        working-directory: release
-        run: npm run manifest:sign
-        env:
-          ED25519_PRIV_KEY_B64: ${{ secrets.ED25519_PRIV_KEY_B64 }}
-
-      - name: Verify manifest
-        working-directory: release
-        run: npm run manifest:verify
-        env:
-          ED25519_PUB_KEY_HEX: ${{ secrets.ED25519_PUB_KEY_HEX }}
 
       - name: Copy manifest into main/docs
         run: |
