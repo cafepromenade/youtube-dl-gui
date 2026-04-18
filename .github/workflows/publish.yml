@@ -2,6 +2,24 @@ name: 'Publish'
 
 on:
   workflow_dispatch:
+    inputs:
+      build_os:
+        description: 'Select which OS to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - macos
+          - linux
+          - windows
+          - macos-aarch64
+          - macos-x64
+          - linux-x64
+          - linux-arm64
+          - windows-x64
+          - windows-arm64
+
   push:
     branches:
       - release
@@ -18,33 +36,51 @@ jobs:
             args: '--target aarch64-apple-darwin'
             artifact_name: 'bundle-macos-aarch64'
             artifact_path: 'src-tauri/target/aarch64-apple-darwin/release/bundle/**/*'
+            os_group: 'macos'
+            os_name: 'macos-aarch64'
 
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
             artifact_name: 'bundle-macos-x64'
             artifact_path: 'src-tauri/target/x86_64-apple-darwin/release/bundle/**/*'
+            os_group: 'macos'
+            os_name: 'macos-x64'
 
           - platform: 'ubuntu-24.04'
             args: ''
             artifact_name: 'bundle-linux-x64'
             artifact_path: 'src-tauri/target/release/bundle/**/*'
+            os_group: 'linux'
+            os_name: 'linux-x64'
 
           - platform: 'ubuntu-24.04-arm'
             args: ''
             artifact_name: 'bundle-linux-arm64'
             artifact_path: 'src-tauri/target/release/bundle/**/*'
+            os_group: 'linux'
+            os_name: 'linux-arm64'
 
           - platform: 'windows-latest'
             args: ''
             artifact_name: 'bundle-windows-x64'
             artifact_path: 'src-tauri/target/release/bundle/**/*'
+            os_group: 'windows'
+            os_name: 'windows-x64'
 
           - platform: 'windows-11-arm'
             args: ''
             artifact_name: 'bundle-windows-arm64'
             artifact_path: 'src-tauri/target/release/bundle/**/*'
+            os_group: 'windows'
+            os_name: 'windows-arm64'
 
     runs-on: ${{ matrix.platform }}
+
+    if: |
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.build_os == 'all' ||
+      github.event.inputs.build_os == matrix.os_group ||
+      github.event.inputs.build_os == matrix.os_name
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
