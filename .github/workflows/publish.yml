@@ -18,22 +18,27 @@ jobs:
             args: '--target aarch64-apple-darwin'
             artifact_name: 'bundle-macos-aarch64'
             artifact_path: 'src-tauri/target/aarch64-apple-darwin/release/bundle/**/*'
+
           - platform: 'macos-latest'
             args: '--target x86_64-apple-darwin'
             artifact_name: 'bundle-macos-x64'
             artifact_path: 'src-tauri/target/x86_64-apple-darwin/release/bundle/**/*'
+
           - platform: 'ubuntu-24.04'
             args: ''
             artifact_name: 'bundle-linux-x64'
             artifact_path: 'src-tauri/target/release/bundle/**/*'
+
           - platform: 'ubuntu-24.04-arm'
             args: ''
             artifact_name: 'bundle-linux-arm64'
             artifact_path: 'src-tauri/target/release/bundle/**/*'
+
           - platform: 'windows-latest'
             args: ''
             artifact_name: 'bundle-windows-x64'
             artifact_path: 'src-tauri/target/release/bundle/**/*'
+
           - platform: 'windows-11-arm'
             args: ''
             artifact_name: 'bundle-windows-arm64'
@@ -44,7 +49,7 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: install dependencies (ubuntu only)
+      - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-24.04' || matrix.platform == 'ubuntu-24.04-arm'
         run: |
           sudo apt-get update
@@ -61,13 +66,13 @@ jobs:
             patchelf \
             xdg-utils
 
-      - name: setup node
+      - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: 'npm'
 
-      - name: install Rust 1.94.1
+      - name: Install Rust 1.94.1
         uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
         with:
           toolchain: 1.94.1
@@ -81,9 +86,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Install cargo-about
+        uses: taiki-e/install-action@0fde6d128a3d980ceac30be8c8b8739abd963b81 # v2
+        with:
+          tool: cargo-about
+
       # TEMPORARY WORKAROUND:
       # Use a custom tauri-cli branch to enable the new "truly portable" AppImage format.
-      - name: Override tauri-cli (ubuntu only)
+      - name: Override tauri-cli (Ubuntu only)
         if: matrix.platform == 'ubuntu-24.04' || matrix.platform == 'ubuntu-24.04-arm'
         shell: bash
         run: |
@@ -102,6 +112,13 @@ jobs:
           TAURI_BUNDLER_NEW_APPIMAGE_FORMAT: "true"
         run: |
           cargo tauri build ${{ matrix.args }}
+
+      - name: Upload app bundles immediately
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+          if-no-files-found: warn
 
       - name: Create public PDBs (Windows only)
         if: matrix.platform == 'windows-latest' || matrix.platform == 'windows-11-arm'
@@ -155,30 +172,23 @@ jobs:
 
           $pkg = Get-Content -Raw "package.json" | ConvertFrom-Json
           $version = $pkg.version
-          
+
           $arch = if ($env:RUNNER_ARCH -eq 'ARM64') { 'arm64' } else { 'x64' }
-          
+
           $zipName = "Open.Video.Downloader_$($version)_$($arch)-portable.zip"
           $exeName = "Open.Video.Downloader_$($version)_$($arch).exe"
           $keepFileName = ".keep"
-          
+
           Write-Host "Building portable bundle for $arch architecture: $zipName"
-          
+
           $exe = Get-ChildItem -Path $releaseDir -Filter "*.exe" | Where-Object { $_.Name -notmatch "setup" } | Select-Object -First 1
           if (-not $exe) { Write-Error "Could not find main exe in $releaseDir" }
-          
+
           New-Item -ItemType Directory -Path "$layoutRoot/$portableFolder" -Force | Out-Null
           New-Item -ItemType File -Path "$layoutRoot/$portableFolder/$keepFileName" -Value "Do not remove this file or directory." -Force | Out-Null
           Copy-Item $exe.FullName -Destination "$layoutRoot/$exeName" -Force
-          
-          Compress-Archive -Path "$layoutRoot/*" -DestinationPath $zipName -Force
 
-      - name: Upload app bundles
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_path }}
-          if-no-files-found: warn
+          Compress-Archive -Path "$layoutRoot/*" -DestinationPath $zipName -Force
 
       - name: Upload Portable ZIP (Windows only)
         if: matrix.platform == 'windows-latest' || matrix.platform == 'windows-11-arm'
